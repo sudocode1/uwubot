@@ -99,10 +99,14 @@ bot.on('message', async message => {
         
 
         if (!results.length) {
-            connection.query(`INSERT INTO xp (userId, xpCount, level, zeroNum) VALUES ('${message.author.id}', 0, 1, 0)`, (e, _, __) => {
+            connection.query(`INSERT INTO xp (userId, xpCount, level, username) VALUES ('${message.author.id}', 0, 1, '${message.author.tag}')`, (e, _, __) => {
                 if(e) return console.log(e);
             });
         } else {
+            connection.query(`UPDATE xp SET username = '${message.author.tag}' WHERE userId = '${message.author.id}'`, (b6, _, __) => {
+                if (b6) console.error(b6);
+            });
+
             results = results[0];
             let addition = Math.round(Math.random() * 50);
             if (results.xpCount + addition > baseXp * results.level) {

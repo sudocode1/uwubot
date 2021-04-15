@@ -18,6 +18,9 @@ SQL scripts are provided for you (`/sql`) and are intended for use on PHPMyAdmin
 | `createdb.sql` | Create the Database required. |
 | `wipedb.sql` | Reset the Database. |
 | `wipexp.sql` | Reset only the XP table. | 
+
+<br>
+
 You can change the database name etc, but make sure it is consistent across all sql files and `/static/config.json`.
 
 

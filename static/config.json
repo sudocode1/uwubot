@@ -1,0 +1,8 @@
+{
+    "token": "BOT_TOKEN_HERE",
+    "dbhost": "localhost",
+    "dbusername": "root",
+    "dbpassword": "",
+    "dbname": "uwubot",
+    "ownerid": "YOUR_ID_HERE"
+}

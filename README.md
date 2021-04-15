@@ -20,3 +20,4 @@ SQL scripts are provided for you (`/sql`) and are intended for use on PHPMyAdmin
 | `wipexp.sql` | Reset only the XP table. | 
 You can change the database name etc, but make sure it is consistent across all sql files and `/static/config.json`.
 
+

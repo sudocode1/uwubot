@@ -1,51 +1,26 @@
 <!DOCTYPE html>
+
+<title>uwubot</title>
+
+<?php 
+    $botid = "830418819829989397";
+    $invitelink = "https://discord.com/api/oauth2/authorize?client_id=$botid&permissions=8&scope=bot";
+?>
+
 <link rel="stylesheet" href="styles.css">
 
 <center>
+
     <h1 class="title">uwubot</h1>
+    <h4>uwubot is a Discord Bot, with Utility Features, Coronavirus Stats, N/SFW Anime, XP, A Moderator Dashboard, Geometry Dash features and more! It's also completely open source on <a style="color: white;" href="https://github.com/sudocode1/uwubot">GitHub</a>, including Database setup files and the dashboard!</h4> <Br>
+    <a href="globalleaderboard.php">
+        <button>Global Leaderboard</button>
+    </a>
+
+    <a href="<?php echo $invitelink ?>">
+        <button>Invite the bot</button>
+    </a>
+
+    
+
 </center>
-
-<center>
-<table>
-    <!-- style="width: 100%;" -->
-  <tr>
-    <th>#</th>
-    <th>Username</th>
-    <th>Level</th>
-    <th>XP</th>
-  </tr>
-
-  <!-- <tr>
-    <td>January</td>
-    <td>$100</td>
-  </tr> -->
-
-
-<?php
-    $conn = new mysqli("localhost", "root", "", "uwubot");
-
-    if ($conn->connect_error) {
-        die('mysql connection failed');
-    }
-
-    //echo "connected<br>";
-
-    $sql = "SELECT * FROM xp ORDER BY level DESC, xpCount DESC";
-    $result = $conn->query($sql);
-
-    if ($result->num_rows > 0) {
-      $rank = 0;
-        while($row = $result->fetch_assoc()) {
-            // echo "id: " . $row["userId"]. " - xp: " . $row["xpCount"]. " - level:" . $row["level"]. "<br>";
-            ++$rank;
-            echo "<tr><td>". $rank . "</td><td>" . $row["username"] . "</td><td>" . $row["level"] . "</td><td>" . $row["xpCount"] . "</td></tr>";
-        }
-    }
-?>
-
-</table>
-<center>
-
-<?php
-  $conn->close();
-?>

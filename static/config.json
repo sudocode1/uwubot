@@ -4,5 +4,6 @@
     "dbusername": "root",
     "dbpassword": "",
     "dbname": "uwubot",
-    "ownerid": "YOUR_ID"
+    "ownerid": "YOUR_USER_ID",
+    "websiteURL": "YOUR_WEBSITE_URL"
 }

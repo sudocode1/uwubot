@@ -1,5 +1,8 @@
-CREATE DATABASE uwubot;
+-- use this if you cant use wipedb.sql or createdb.sql because DROP DATABASE etc is not allowed
+
 USE uwubot;
+DROP TABLE IF EXISTS xp;
+DROP TABLE IF EXISTS modsettings;
 
 CREATE TABLE xp (
     userId text,
@@ -7,6 +10,7 @@ CREATE TABLE xp (
     level int,
     username text
 );
+
 
 CREATE TABLE modsettings (
     guildId text,

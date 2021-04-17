@@ -5,6 +5,7 @@ const neko = new client();
 const mysql = require('mysql');
 const fetch = require('node-fetch');
 const config = require('./static/config.json');
+const genshin = require('genshin');
 
 const cov = require('novelcovid');
 cov.settings({
@@ -61,7 +62,15 @@ let commands = {
     gdprofile: { category: 'gd', params: '<username/id>', description: 'Get a Geometry Dash profile', footer: 'API Provided by GDBrowser / GDColon' },
     gdlevel: { category: 'gd', params: '<levelId>', description: 'Get a Geometry Dash level', footer: 'API Provided by GDBrowser / GDColon' },
     cat: { category: 'fun', params: '', description: 'Get random cats', footer: 'API Provided by aws.random.cat' },
-    cattext: { category: 'fun', params: '<text>', description: 'Get a cat with text', footer: 'API Provided by cataas.com' }
+    cattext: { category: 'fun', params: '<text>', description: 'Get a cat with text', footer: 'API Provided by cataas.com' },
+    genshinchar: { category: 'genshin', params: '<character>', description: 'Get information of a Genshin Impact character' },
+    genshinweapon: { category: 'genshin', params: '<weapon>', description: 'Get information of a Genshin Impact weapon' },
+    genshincharlist: { category: 'genshin', params: '', description: 'See list of supported Genshin Characters' },
+    genshinweaponlist: { category: 'genshin', params: '', description: 'See list of supported Genshin Weapons' },
+    warn: { category: 'moderation', params: '<@user> <reason>', description: 'Warn a user', footer: 'im working on a strikecount parameter ok' },
+    kick: { category: 'moderation', params: '<@user> <reason>', description: 'Kick a user' },
+    ban: { category: 'moderation', params: '<@user> <reason>', description: 'Ban a user' },
+    moddash: { category: 'moderation', params: '', description: 'Go to the moderator dashboard' },
 }
 
 
@@ -72,7 +81,9 @@ let categories = {
     sfw: '🥺 SFW Image',
     fun: '💎 Fun',
     xp: '🎊 XP',
-    gd: '<:icon:831847586934816809> Geometry Dash'
+    moderation: '⚖️ Moderation',
+    gd: '<:icon:831847586934816809> Geometry Dash',
+    genshin: '<:genshin:832897706678288444> Genshin Impact'
 }
 
 /* 
@@ -93,17 +104,23 @@ bot.on('message', async message => {
     if (message.author.id == bot.user.id) return;
     if (message.author.bot) return;
 
+    
+
     connection.query(`SELECT * FROM xp WHERE userId = ${message.author.id}`, (error, results, _) => {
         if (error) return console.log(error);
-    
         
+        let author = message.author.tag;
+
+        if (message.author.tag.includes("'")) author = message.author.tag.split("'").join("");
+        if (message.author.tag.includes('"')) author = message.author.tag.split('"').join('');
+        if (message.author.tag.includes("`")) author = message.author.tag.split("`").join("");
 
         if (!results.length) {
-            connection.query(`INSERT INTO xp (userId, xpCount, level, username) VALUES ('${message.author.id}', 0, 1, '${message.author.tag}')`, (e, _, __) => {
+            connection.query(`INSERT INTO xp (userId, xpCount, level, username) VALUES ('${message.author.id}', 0, 1, '${author}')`, (e, _, __) => {
                 if(e) return console.log(e);
             });
         } else {
-            connection.query(`UPDATE xp SET username = '${message.author.tag}' WHERE userId = '${message.author.id}'`, (b6, _, __) => {
+            connection.query(`UPDATE xp SET username = '${author}' WHERE userId = '${message.author.id}'`, (b6, _, __) => {
                 if (b6) console.error(b6);
             });
 
@@ -243,7 +260,9 @@ bot.on('message', async message => {
                 util: '',
                 fun: '',
                 xp: '',
-                gd: ''
+                gd: '',
+                genshin: '',
+                moderation: ''
             };
             
             Object.entries(commands).forEach(x => {
@@ -258,8 +277,10 @@ bot.on('message', async message => {
                 .addField(categories.sfw, helpCommand.sfw.slice(0, -2))
                 .addField(categories.fun, helpCommand.fun.slice(0, -2))
                 .addField(categories.util, helpCommand.util.slice(0, -2))
+                .addField(categories.moderation, helpCommand.moderation.slice(0, -2))
                 .addField(categories.xp, helpCommand.xp.slice(0, -2))
                 .addField(categories.gd, helpCommand.gd.slice(0, -2))
+                .addField(categories.genshin, helpCommand.genshin.slice(0, -2))
 
             )
         break;
@@ -348,7 +369,7 @@ bot.on('message', async message => {
                     num++;
                 });
 
-                message.channel.send(embed.addField('Global Leaderboard', `${string}`));
+                message.channel.send(embed.addField('Global Leaderboard', `${string}`).addField('Want to see more than the Top 10?', `[Check out the new leaderboard!](https://${config.websiteURL}/globalleaderboard.php)`));
             });
         break;
 
@@ -542,8 +563,329 @@ bot.on('message', async message => {
         break;
 
         case `${prefix}cattext`:
-            if (!args[0]) return message.reply('you need text! (sorry gamer)')
-            message.channel.send(`https://cataas.com/cat/says/${args.join("%20")}`)
+            if (!args[0]) return message.reply('you need text! (sorry gamer)');
+            message.channel.send(`https://cataas.com/cat/says/${args.join("%20")}`);
+        break;
+
+        case `${prefix}moddash`:
+            if (!message.member.hasPermission('ADMINISTRATOR')) return;
+
+            connection.query(`SELECT * FROM modsettings WHERE guildId = '${message.guild.id}'`, (e, r, _) => {
+                if (!r.length) {
+                    message.channel.send('Guild does not exist in the database! Creating...');
+                    let secret = Math.round(Math.random() * 100000000);
+
+                    message.author.send(`secret: ${secret}`).catch(e => {
+                        message.channel.send(`failed to dm you, secret: ${secret}`)
+                    });
+                    
+                    connection.query(`INSERT INTO modsettings (guildId, warnChannelId, secret, ownerId) VALUES ('${message.guild.id}', '', '${secret}', '${message.guild.ownerID}')`, (ee, rr, __) => { if (ee) console.log(ee) });
+                }
+
+                message.channel.send(`${config.websiteURL}/moddashboard.php?${message.guild.id}`);
+            });
+
+            
+        break;
+
+        case `${prefix}kick`:
+            if(!args[0] || !args[1]) return message.reply('missing args');
+
+            let [ user, reason, date ] = [message.guild.members.cache.find(x => x.id == message.mentions.members.first().id), args.slice(1).join(" "), new Date().toLocaleString('en')];
+
+            try { user.hasPermission('MANAGE_MESSAGES') }
+            catch (e) { message.reply('there was an issue caching the member') };
+
+            if (!message.member.hasPermission('KICK_MEMBERS') || user.hasPermission('MANAGE_MESSAGES') || message.member.roles.highest.position < user.roles.highest.position) return message.reply('refused: permissions');
+            connection.query(`SELECT * FROM modsettings WHERE guildId = '${message.guild.id}'`, (e, r, _) => {
+                if (!r.length) return message.reply('moderation has not been set up!');
+                if (!r[0].warnChannelId) return message.reply('warn channel has not been specified! edit with >moddash');
+                let ch = message.guild.channels.cache.find(x => x.id == r[0].warnChannelId);
+                if (!ch) return message.reply('the warnings channel does not exist! edit with >moddash');
+                
+                r[0].cases++;
+                r[0].kicks++;
+
+                connection.query(`UPDATE modsettings SET cases = ${r[0].cases} kicks = ${r[0].kicks} WHERE guildId = '${message.guild.id}'`, (e1, r1, __) => {
+                    if (e1) console.log(e1);
+                });
+
+                (async() => {
+                    await user.kick(reason);
+                ch.send(
+                    new Discord.MessageEmbed()
+                    .setColor('YELLOW')
+                    .setTitle('Kick (Case #' + r[0].cases + ')')
+                    .addField('User kicked', user.user.tag, true)
+                    .addField('Reason', reason, true)
+                    .addField('Time', date, true)
+                ).catch(e => {
+                    message.channel.send('your specified warn channel does not exist!');
+                });
+
+                message.channel.send('kick command completed');
+                })();
+            });
+
+        break;
+
+        case `${prefix}ban`:
+            if(!args[0] || !args[1]) return message.reply('missing args');
+
+            let [ user2, reason2, date2 ] = [message.guild.members.cache.find(x => x.id == message.mentions.members.first().id), args.slice(1).join(" "), new Date().toLocaleString('en')];
+
+            
+
+            if (!message.member.hasPermission('BAN_MEMBERS') || user2.hasPermission('MANAGE_MESSAGES') || message.member.roles.highest.position < user2.roles.highest.position) return message.reply('refused: permissions');
+            connection.query(`SELECT * FROM modsettings WHERE guildId = '${message.guild.id}'`, (e, r, _) => {
+                if (!r.length) return message.reply('moderation has not been set up!');
+                if (!r[0].warnChannelId) return message.reply('warn channel has not been specified! edit with >moddash');
+                let ch = message.guild.channels.cache.find(x => x.id == r[0].warnChannelId);
+                if (!ch) return message.reply('the warnings channel does not exist! edit with >moddash');
+                
+                r[0].cases++;
+                r[0].bans++;
+
+                connection.query(`UPDATE modsettings SET cases = ${r[0].cases} bans = ${r[0].bans} WHERE guildId = '${message.guild.id}'`, (e1, r1, __) => {
+                    if (e1) console.log(e1);
+                });
+
+                (async() => {
+                    await user2.ban({ reason: reason2 });
+                ch.send(
+                    new Discord.MessageEmbed()
+                    .setColor('BLUE')
+                    .setTitle('Ban (Case #' + r[0].cases + ')')
+                    .addField('User banned', user2.user.tag, true)
+                    .addField('Reason', reason2, true)
+                    .addField('Time', date2, true)
+                ).catch(e => {
+                    message.channel.send('your specified warn channel does not exist!');
+                });
+
+                message.channel.send('ban command completed');
+                })();
+            });
+
+        break;
+
+        case `${prefix}warn`:
+            let [ u, strikes, r, d ] = [ message.mentions.members.first(), parseInt(args[0]), args.join(' '), new Date().toLocaleDateString('en') ];
+
+
+            if (!message.member.hasPermission('MANAGE_MESSAGES') || u.hasPermission('MANAGE_MESSAGES') || message.member.roles.highest.position < u.roles.highest.position) return message.reply('refused: permissions');
+
+            connection.query(`SELECT * FROM modsettings WHERE guildId = '${message.guild.id}'`, (ee, rr, ___) => {
+                if (ee) return console.log(ee);
+
+                if (!rr.length) return message.reply('moderation has not been set up!');
+                if (!rr[0].warnChannelId) return message.reply('warn channel has not been specified! edit with >moddash');
+                let ch = message.guild.channels.cache.find(x => x.id == rr[0].warnChannelId);
+                if (!ch) return message.reply('the warnings channel does not exist! edit with >moddash');
+
+                let [ strikeRole1, strikeRole2 ] = [message.guild.roles.cache.find(x => x.id == rr[0].strike1RoleId), message.guild.roles.cache.find(x => x.id == rr[0].strike2RoleId)];
+
+                if (!strikeRole1 || !strikeRole2) return message.reply('one or more of the strike roles are missing, edit this with >moddash');
+
+                rr[0].cases++;
+                rr[0].warns++;
+
+                connection.query(`UPDATE modsettings SET cases = ${rr[0].cases}, warns = ${rr[0].warns} WHERE guildId = '${message.guild.id}'`, (e1, r1, __) => {
+                    if (e1) console.log(e1);
+                });
+
+
+                let from, to;
+
+                
+                if (u.roles.cache.has(strikeRole2.id)) {
+                    message.channel.send('user has max strikes! banning.');
+
+                    from = 2;
+                    to = 'Ban';
+
+                    rr[0].bans++;
+
+                    connection.query(`UPDATE modsettings SET cases = ${rr[0].cases}, bans = ${rr[0].bans} WHERE guildId = '${message.guild.id}'`, (e1, r1, __) => {
+                        if (e1) console.log(e1);
+                    });
+
+                    return (async() => {
+                        await u.ban({ reason: 'Reached strike cap' });
+                    ch.send(
+                        new Discord.MessageEmbed()
+                        .setColor('BLUE')
+                        .setTitle('Warnban (Case #' + rr[0].cases + ' | ' + `${from} -> ${to}` +')')
+                        .addField('User banned', u.user.tag, true)
+                        .addField('Reason', r, true)
+                        .addField('Time', d, true)
+                    ).catch(e => {
+                        message.channel.send('your specified warn channel does not exist!');
+                    });
+    
+                    message.channel.send('ban command completed');
+                    })();
+                } else if (u.roles.cache.has(strikeRole1.id)) {
+                    from = 1;
+                    to = 2;
+                    u.roles.add(strikeRole2).catch(e => {
+                        return message.channel.send('role does not exist or bot does not have sufficient permissions.');
+                    });
+                } else {
+                    from = 0;
+                    to = 1;
+                    u.roles.add(strikeRole1).catch(e => {
+                        return message.channel.send('role does not exist or bot does not have sufficient permissions.');
+                    });
+                }
+
+                (async() => {
+                ch.send(
+                    new Discord.MessageEmbed()
+                    .setColor('BLUE')
+                    .setTitle('Warn (Case #' + rr[0].cases + ' | ' + `${from} -> ${to}` +')')
+                    .addField('User warned', u.user.tag, true)
+                    .addField('Reason', r, true)
+                    .addField('Time', d, true)
+                    
+                ).catch(e => {
+                    message.channel.send('your specified warn channel does not exist!');
+                });
+
+                message.channel.send('warn command completed');
+                })();
+            });
+            
+        break;
+
+        case `${prefix}genshinweapon`:
+            let c2=true;
+            if (!args[0]) return message.reply('missing args');
+            
+            
+            (async() => {
+                try {
+
+                    // let spl = args[0].split('');
+                    // spl[0] = spl[0].toUpperCase();
+                    // args[0] = spl.join('')
+
+                    let wep = await genshin.weapons(args[0]).catch(e => {
+                        c2=false;
+                    });
+    
+                    //console.log(char);
+
+
+                    console.log(wep);
+    
+                    if (wep.name == undefined) return message.reply('character does not exist!');
+    
+                    if (!c2) return message.reply('character does not exist!');
+    
+                    message.channel.send(
+                        new Discord.MessageEmbed()
+                        .setColor('BLUE')
+                        .setTitle(wep.name)
+                        .addField('Base Attack Damage', wep.baseatk, true)
+                        .addField('Secondary Stat', wep.secstat, true)
+                        .addField('Passive', wep.passive, true)
+                        .addField('Rating', wep.rating, true)
+                        .addField('R1', wep.r1, true)
+                        .addField('R2', wep.r2, true)
+                        .addField('R3', wep.r3, true)
+                        .addField('R4', wep.r4, true)
+                        .addField('R5', wep.r5, true)
+                        .addField('Class', wep.class, true)
+                        .setImage(wep.url)
+                    )
+                } catch(e) {
+                    message.reply('weapon does not exist');
+                    console.log(e);
+                }
+            })();
+        break;
+
+        case `${prefix}genshinchar`:
+            let c=true;
+            if (!args[0]) return message.reply('missing args');
+
+
+            (async() => {
+                try {
+
+                    let spl2 = args[0].split('');
+                    spl2[0] = spl2[0].toUpperCase();
+                    args[0] = spl2.join('')
+
+                    let char = await genshin.characters(args[0]).catch(e => {
+                        c=false;
+                    });
+    
+                    //console.log(char);
+
+
+    
+    
+                    if (char.name == undefined) return message.reply('character does not exist!');
+    
+                    if (!c) return message.reply('character does not exist!');
+    
+                    message.channel.send(
+                        new Discord.MessageEmbed()
+                        .setColor('GREEN')
+                        .setTitle(char.name )
+                        .setDescription("\"" + char.quote + "\"")
+                        .addField('CV', char.cv)
+                        .addField('Description', char.description)
+                        .addField('City', char.city)
+                        .addField('Element', char.element)
+                        .addField('Rating', char.rating)
+                        .setImage(char.image)
+                    )
+                } catch(e) {
+                    message.reply('char does not exist');
+                }
+            })();
+        break;
+
+        case `${prefix}genshinweaponlist`:
+            let l = require('fs').readdirSync('./node_modules/genshin/weapons');
+            let number = 0;
+
+            l.forEach(x => {
+                l[number] = l[number].slice(0, -5);
+                number++;
+            })
+
+            message.channel.send(`\`\`\`\n${l.join('\n')}\`\`\``);
+        break;
+        
+        case `${prefix}genshincharlist`:
+            let l2 = require('fs').readdirSync('./node_modules/genshin/characters');
+            let number2 = 0;
+
+            l2.forEach(x => {
+                l2[number2] = l2[number2].slice(0, -5);
+                number2++;
+            })
+
+            message.channel.send(`\`\`\`\n${l2.join('\n')}\`\`\``);
+        break;
+
+        case `${prefix}newsecret`:
+            connection.query(`SELECT * FROM modsettings WHERE guildId = ${message.guild.id}`, (err, res, _) => {
+                if (!res.length) return message.reply('server does not exist in the database!');
+
+                let s = Math.round(Math.random() * 100000000);
+
+                connection.query(`UPDATE modsettings SET secret = ${s} WHERE guildId = ${message.guild.id}`, () => {});
+                message.author.send(`secret: ${s}`).catch(e => {
+                    console.log(e);
+                    message.channel.send(`could not dm you, secret: ${s}`);
+                });
+
+            });
         break;
     }
 

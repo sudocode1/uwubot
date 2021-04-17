@@ -1,6 +1,10 @@
 <!DOCTYPE html>
 <link rel="stylesheet" href="styles.css">
 
+<?php
+  include 'metadata.php';
+?>
+
 <center>
     <h1 class="title">mod dashboard</h1>
 </center>

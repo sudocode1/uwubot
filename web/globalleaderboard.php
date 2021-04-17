@@ -1,6 +1,10 @@
 <!DOCTYPE html>
 <link rel="stylesheet" href="styles.css">
 
+<?php
+  include 'metadata.php';
+?>
+
 <title>Global Leaderboard</title>
 
 <center>
@@ -24,7 +28,7 @@
 
 
 <?php
-    $conn = new mysqli("localhost", "root", "", "uwubot");
+    $conn = new mysqli("localhost", "", "", "uwubot");
 
     if ($conn->connect_error) {
         die('mysql connection failed');

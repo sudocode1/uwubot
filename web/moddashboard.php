@@ -25,7 +25,7 @@
     
     
 
-    $conn = new mysqli("plesk.oxide.host", "sudocode_uwu", "F6f7f8f10@", "uwubot");
+    $conn = new mysqli("localhost", "root", "", "uwubot");
 
     if ($conn->connect_error) {
         die('mysql connection failed');
